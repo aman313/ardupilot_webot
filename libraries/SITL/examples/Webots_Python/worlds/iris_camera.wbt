@@ -12,6 +12,7 @@ EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/project
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/animals/protos/Rabbit.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/garden/protos/Gnome.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/factory/forklift/protos/Forklift.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/humans/pedestrian/protos/Pedestrian.proto"
 EXTERNPROTO "../protos/Iris.proto"
 EXTERNPROTO "../protos/ArucoMarker.proto"
 
@@ -57,6 +58,13 @@ Forklift {
   translation 9.19827 2.56008 0.81
   rotation 0 0 1 -2.3561953071795863
   enablePhysics FALSE
+}
+Pedestrian {
+  translation 12 -3 1.26
+  controllerArgs [
+    "--trajectory= 12 3, 12 -3"
+    "--speed=2.5"
+  ]
 }
 Dog {
   translation 5.97592 3.52 1.77636e-15
