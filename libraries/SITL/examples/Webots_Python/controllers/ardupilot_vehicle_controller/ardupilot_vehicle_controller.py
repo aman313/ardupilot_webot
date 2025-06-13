@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 '''
 General ardupilot vehicle controller for Webots 2023a
 
@@ -9,6 +8,17 @@ AP_FLAKE8_CLEAN
 import time
 import argparse
 from webots_vehicle import WebotsArduVehicle
+import sys
+from pymavlink import mavutil
+from PIL import Image
+import numpy as np
+
+if sys.version_info.major == 3 and sys.version_info.minor >= 10:
+    import collections
+    setattr(collections, "MutableMapping", collections.abc.MutableMapping)
+    
+from dronekit import connect, VehicleMode
+import math
 
 
 def get_args():
@@ -92,6 +102,77 @@ def get_args():
     return parser.parse_args()
 
 
+from dronekit import Vehicle
+from pymavlink import mavutil
+import math, time
+
+# ────────────────────────────────────────────────
+# Helper: Euler → quaternion  (degrees in, list[w,x,y,z] out)
+def to_quaternion(roll=0.0, pitch=0.0, yaw=0.0):
+    """Convert roll, pitch, yaw (deg) to quaternion suitable for MAVLink."""
+    r  = math.radians(roll)
+    p  = math.radians(pitch)
+    y  = math.radians(yaw)
+    cy, sy = math.cos(y*0.5), math.sin(y*0.5)
+    cr, sr = math.cos(r*0.5), math.sin(r*0.5)
+    cp, sp = math.cos(p*0.5), math.sin(p*0.5)
+    return [
+        cy*cr*cp + sy*sr*sp,      # w
+        cy*sr*cp - sy*cr*sp,      # x
+        cy*cr*sp + sy*sr*cp,      # y
+        sy*cr*cp - cy*sr*sp       # z
+    ]
+
+# ────────────────────────────────────────────────
+def yaw_relative(vehicle: Vehicle, offset_deg: float,
+                 duration=2.0, thrust=0.5, rate_hz=10):
+    """
+    Yaw by `offset_deg` relative to current heading using SET_ATTITUDE_TARGET.
+    `duration` is how long to keep resending the set-point (FCU requires ≥ 1 s).
+    """
+    # 1.  Grab present yaw (DroneKit gives radians in [-π,π])
+    current_yaw = math.degrees(vehicle.attitude.yaw)
+    target_yaw  = (current_yaw + offset_deg) % 360
+
+    # 2.  Build quaternion for level attitude + new yaw
+    q = to_quaternion(0, 0, target_yaw)
+
+    # 3.  Type-mask:  bit 1‒3 = ignore body-rates.
+    #                 everything else (angles & thrust) honoured.
+    TYPE_MASK = 0b00000111
+
+    # 4.  Stream the message for `duration`
+    t0 = time.time()
+    while time.time() - t0 < duration:
+        msg = vehicle.message_factory.set_attitude_target_encode(
+            0,          # time_boot_ms (not used)
+            0, 0,       # target system, component
+            TYPE_MASK,  # ignore body rates, use quaternion + thrust
+            q,          # attitude quaternion w,x,y,z
+            0, 0, 0,    # body roll/pitch/yaw rates (ignored because mask)
+            thrust      # 0–1 (≈0.5 holds altitude in AltHold/Guided)
+        )
+        vehicle.send_mavlink(msg)
+        time.sleep(1.0/rate_hz)
+
+    # 5.  OPTIONAL: clear the stick-like set-point so the vehicle
+    #     goes back to flight-controller’s normal yaw stabilisation
+    vehicle.flush()          # pushes any buffered MAVLink immediately
+
+
+def wait_for_yaw(vehicle, target_yaw, timeout=10, tolerance=0.1):
+    """
+    Wait for the vehicle to reach the target yaw angle
+    """
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        current_yaw = vehicle.attitude.yaw
+        if abs(current_yaw - target_yaw) < tolerance:
+            return True
+        time.sleep(0.1)
+    return False
+
+
 if __name__ == "__main__":
     args = get_args()
 
@@ -120,8 +201,71 @@ if __name__ == "__main__":
                                 uses_propellers=args.uses_propellers,
                                 sitl_address=args.sitl_address)
 
-    # User code (ex: connect via drone kit and take off)
-    # ...
+    # Connect to the drone
+    connection_string = f"tcp:{args.sitl_address}:5760"
+    drone = connect(connection_string, wait_ready=True)
+    
+    # Wait for the drone to be ready
+    while not drone.is_armable:
+        print("Waiting for drone to be armable...")
+        time.sleep(1)
+    
+    # Arm the drone
+    print("Arming motors...")
+    drone.mode = VehicleMode("GUIDED")
+    drone.armed = True
+    
+    # Wait for arming
+    while not drone.armed:
+        print("Waiting for arming...")
+        time.sleep(1)
+    
+    # Take off to target altitude
+    target_altitude = 5  # meters
+    print(f"Taking off to {target_altitude} meters...")
+    drone.simple_takeoff(target_altitude)
+    
+    # Wait until we reach target altitude
+    while True:
+        current_altitude = drone.location.global_relative_frame.alt
+        if current_altitude >= target_altitude * 0.95:  # Within 5% of target
+            print("Reached target altitude")
+            break
+        time.sleep(1)
+
+    # Rotate and capture images
+    print("Starting rotation and image capture sequence...")
+    for i in range(4):  # 4 positions (original + 3 rotations)
+        offset_deg = 90*i
+        drone.mode = VehicleMode("GUIDED")      # or "GUIDED_NOGPS"
+        yaw_relative(drone, offset_deg=90) 
+        # turn 90 deg CW
+        
+        # # Wait for yaw to reach target
+        # if wait_for_yaw(drone, offset_deg):
+        #     print(f"Reached target yaw of {math.degrees(offset_deg)} degrees")
+        # else:
+        #     print(f"Failed to reach target yaw of {math.degrees(target_yaw)} degrees")
+        #     continue
+        
+        time.sleep(4)  # Additional stabilization time
+        
+        # Capture and save image
+        if args.camera:
+            print(f"Capturing image at {offset_deg} degrees...")
+            image = vehicle.get_camera_image()
+            if image is not None:
+                filename = f"/Users/aman/Documents/capture_{offset_deg}_degrees.jpg"
+                # Convert numpy array to PIL Image and save
+                pil_image = Image.fromarray(image)
+                pil_image.save(filename)
+                print(f"Saved image to {filename}")
+            else:
+                print("Failed to capture image")
+        else:
+            print("No camera found")
+        
+        time.sleep(1)  # Wait before next rotation
 
     while vehicle.webots_connected():
         time.sleep(1)

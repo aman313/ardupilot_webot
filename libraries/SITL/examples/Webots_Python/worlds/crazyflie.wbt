@@ -1,9 +1,9 @@
-#VRML_SIM R2023a utf8
+#VRML_SIM R2025a utf8
 
-EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/robots/bitcraze/crazyflie/protos/Crazyflie.proto"
-EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/backgrounds/protos/TexturedBackground.proto"
-EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
-EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/floors/protos/Floor.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/robots/bitcraze/crazyflie/protos/Crazyflie.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/floors/protos/Floor.proto"
 
 WorldInfo {
   title "Crazyflie Ardupilot"
@@ -11,8 +11,8 @@ WorldInfo {
   FPS 20
 }
 Viewpoint {
-  orientation -0.16896949154992233 0.7737576492025086 0.6105312532753491 0.687001624474616
-  position -0.398945807007221 -0.19824950788611448 0.29284320157231725
+  orientation 0 0 1 3.141592653589793
+  position 0.5331207790105861 -2.181257239340221e-17 -2.5219844677921743e-17
   follow "Crazyflie"
   followSmoothness 0.01
 }

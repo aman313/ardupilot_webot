@@ -19,5 +19,6 @@ ATC_RAT_YAW_D    0.000001
 AHRS_EKF_TYPE    10         # Use sim AHRS
 ARMING_CHECK	 1045534    # No RC requirements
 MOT_THST_EXPO    0          # No motor exponential
-SCHED_LOOP_RATE  300
+SCHED_LOOP_RATE  250
 INS_GYR_CAL      0
+LOG_BACKEND_TYPE 0 
